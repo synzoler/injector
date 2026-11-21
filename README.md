@@ -2,7 +2,7 @@
   <h1>Injector</h1>
   <p>A lightweight Material YouTube Music player for Android, built with Kotlin and Jetpack Compose.</p>
 
-  **[⬇️ Download Injector APK (Latest Release)](/synzoler/injector/releases/latest)**
+  **[⬇️ Download Injector APK (Latest Release)](../../releases/latest)**
   
 </div>
 
@@ -14,7 +14,7 @@
 - Background playback and playlist management.
 
 ## 📥 Download
-Get the latest version (`Injector.apk`) directly from the [Releases](/synzoler/injector/releases) section.
+Get the latest version (`Injector.apk`) directly from the [Releases](../../releases) section.
 
 ## 📸 Screenshots
 *(Puedes agregar tus capturas de pantalla editando este archivo directamente en GitHub)*
