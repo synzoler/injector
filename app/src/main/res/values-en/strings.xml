@@ -1,0 +1,33 @@
+<resources>
+    <string name="search_hint_short">Search songs, artists...</string>
+    <string name="mood_for_you">For you</string>
+    <string name="mood_albums">Albums</string>
+    <string name="mood_artists">Artists</string>
+    <string name="mood_energy">Energy</string>
+    <string name="mood_relax">Relax</string>
+    <string name="mood_pop">Pop</string>
+    <string name="recommended_for_you">Recommended for you</string>
+    <string name="popular_mixes_albums">Featured albums &amp; mixes</string>
+    <string name="library_title">Library</string>
+    <string name="downloads_title">Downloads</string>
+    <string name="liked_title">Liked</string>
+    <string name="your_playlists">Your playlists</string>
+    <string name="new_playlist">New</string>
+    <string name="google_account">Google Account</string>
+    <string name="session_active_sub">Signed in • Tap to sign out</string>
+    <string name="session_inactive_sub">Tap to sign in and sync</string>
+    <string name="location_title">Location</string>
+    <string name="app_language">App language</string>
+    <string name="app_language_sub">Choose your language (25 languages available)</string>
+    <string name="look_feel_sub">Light/Dark theme and accent colors</string>
+    <string name="storage_cleanup_sub">Clear temporary files and cache</string>
+    <string name="about_title">About</string>
+    <string name="close_btn">Close</string>
+    <string name="done_btn">Done</string>
+    <string name="app_theme">App theme</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">System</string>
+    <string name="accent_color">Accent color</string>
+    <string name="explore_genres">Browse by genre</string>
+</resources>

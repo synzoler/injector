@@ -1,0 +1,201 @@
+package ca.ilianokokoro.umihi.music.ui.navigation
+
+import android.app.Application
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
+import ca.ilianokokoro.umihi.music.R
+import ca.ilianokokoro.umihi.music.core.Constants
+import ca.ilianokokoro.umihi.music.core.helpers.LogHelper.printe
+import ca.ilianokokoro.umihi.music.core.managers.PlayerManager
+import ca.ilianokokoro.umihi.music.ui.components.miniplayer.ExpandablePlayer
+import ca.ilianokokoro.umihi.music.ui.navigation.viewmodels.SharedViewModel
+import ca.ilianokokoro.umihi.music.ui.screens.auth.AuthScreen
+import ca.ilianokokoro.umihi.music.ui.screens.home.HomeScreen
+import ca.ilianokokoro.umihi.music.ui.screens.playlist.PlaylistScreen
+import ca.ilianokokoro.umihi.music.ui.screens.search.SearchScreen
+import ca.ilianokokoro.umihi.music.ui.screens.settings.SettingsScreen
+
+
+@Composable
+fun NavigationRoot(modifier: Modifier = Modifier) {
+    val sharedViewModel: SharedViewModel = viewModel()
+    val backStack = rememberNavBackStack(HomeScreenKey)
+    val app = LocalContext.current.applicationContext as Application
+    val currentScreen = backStack.last()
+    val screenConfig = rememberScreenUiConfig(currentScreen)
+
+    var bottomBarHeightPixels by remember { mutableIntStateOf(0) }
+    val bottomBarHeightDp = with(LocalDensity.current) { bottomBarHeightPixels.toDp() }
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0),
+    ) { paddingValues ->
+
+        val miniPlayerBottomPadding by animateDpAsState(
+            targetValue = if (!screenConfig.showBottomBar) {
+                WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            } else {
+                bottomBarHeightDp
+            },
+            animationSpec = tween(Constants.Animation.NAVIGATION_DURATION)
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(paddingValues)
+        ) {
+
+            NavDisplay(
+                modifier = Modifier
+                    .fillMaxSize(),
+                backStack = backStack,
+                onBack = backStack::safePop,
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator(),
+                ),
+                transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(120)) },
+        popTransitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(120)) },
+        predictivePopTransitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(120)) },
+        entryProvider = { key ->
+                    when (key) {
+
+                        is HomeScreenKey -> NavEntry(key) {
+                            HomeScreen(
+                        onSearchPressed = { backStack.add(SearchScreenKey) },
+                                sharedViewModel = sharedViewModel,
+                                onPlaylistPressed = { playlist ->
+                                    backStack.add(PlaylistScreenKey(playlistInfo = playlist))
+                                },
+                                onLoginPressed = { backStack.add(AuthScreenKey) },
+                                application = app
+                            )
+                        }
+
+                        is SettingsScreenKey -> NavEntry(key) {
+                            SettingsScreen(
+                                sharedViewModel = sharedViewModel,
+                                openAuthScreen = { backStack.add(AuthScreenKey) },
+                                application = app
+                            )
+                        }
+
+                        is PlaylistScreenKey -> NavEntry(key) {
+                            PlaylistScreen(
+                                sharedViewModel = sharedViewModel,
+                                playlistInfo = key.playlistInfo,
+                                onBack = backStack::safePop,
+                                application = app
+                            )
+                        }
+
+                        is AuthScreenKey -> NavEntry(key) {
+                            AuthScreen(
+                                onBack = backStack::safePop,
+                                sharedViewModel = sharedViewModel,
+                                application = app
+                            )
+                        }
+
+                        is LibraryScreenKey -> NavEntry(key) {
+                    ca.ilianokokoro.umihi.music.ui.screens.library.LibraryScreen(
+                        onPlaylistPressed = { playlist -> backStack.add(PlaylistScreenKey(playlistInfo = playlist)) },
+                        application = app
+                    )
+                }
+                is SearchScreenKey -> NavEntry(key) {
+                            SearchScreen(
+                                application = app,
+                            )
+                        }
+
+                        else -> throw RuntimeException(
+                            app.getString(
+                                R.string.invalid_navkey,
+                                key
+                            )
+                        )
+                    }
+                }
+            )
+
+            ExpandablePlayer(
+                onClose = PlayerManager::clearQueue,
+                bottomPadding = miniPlayerBottomPadding,
+                application = app,
+            ) {
+                AnimatedVisibility(
+                    visible = screenConfig.showBottomBar,
+                    enter = slideInVertically(
+                        animationSpec = tween(Constants.Animation.NAVIGATION_DURATION),
+                        initialOffsetY = { it }
+                    ),
+                    exit = slideOutVertically(
+                        animationSpec = tween(Constants.Animation.NAVIGATION_DURATION),
+                        targetOffsetY = { it }
+                    ),
+                ) {
+                    BottomNavigationBar(
+                        currentTab = screenConfig.selectedTab,
+                        onTabSelected = { key ->
+                            if (backStack.last() != key) {
+                                backStack.add(key)
+                            }
+                        },
+                        modifier = Modifier.onSizeChanged { bottomBarHeightPixels = it.height }
+                    )
+                }
+            }
+        }
+
+    }
+}
+
+
+fun NavBackStack<NavKey>.safePop() {
+    if (this.size > 1) {
+        this.removeLastOrNull()
+    } else {
+        printe("Backstack Pop was called unsafely")
+    }
+}

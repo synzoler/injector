@@ -1,0 +1,14 @@
+# Respaldos y scripts
+app_respaldo_seguro/
+backups_*/
+*.bak
+*.py
+
+# Archivos pesados de compilación Android
+.gradle/
+build/
+app/build/
+*.apk
+*.aab
+.cxx/
+local.properties

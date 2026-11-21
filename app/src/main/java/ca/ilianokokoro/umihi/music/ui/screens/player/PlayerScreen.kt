@@ -1,0 +1,480 @@
+package ca.ilianokokoro.umihi.music.ui.screens.player
+
+import kotlinx.coroutines.launch
+
+import androidx.compose.runtime.rememberCoroutineScope
+
+import ca.ilianokokoro.umihi.music.data.repositories.SongRepository
+
+import ca.ilianokokoro.umihi.music.core.ApiResult
+import ca.ilianokokoro.umihi.music.ui.screens.player.components.PlayerControls
+import ca.ilianokokoro.umihi.music.ui.screens.player.components.PlayerActionButtons
+
+import android.app.Application
+import android.content.res.Configuration
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledIconToggleButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import ca.ilianokokoro.umihi.music.R
+import ca.ilianokokoro.umihi.music.core.Constants
+import ca.ilianokokoro.umihi.music.core.helpers.ComposeHelper
+import ca.ilianokokoro.umihi.music.core.managers.PlayerManager
+import ca.ilianokokoro.umihi.music.models.Song
+import ca.ilianokokoro.umihi.music.ui.components.SquareImage
+import ca.ilianokokoro.umihi.music.ui.components.bottomsheet.QueueBottomSheet
+import ca.ilianokokoro.umihi.music.ui.components.bottomsheet.SleepTimerBottomSheet
+import ca.ilianokokoro.umihi.music.ui.components.bottomsheet.SpeedSelectorBottomSheet
+import ca.ilianokokoro.umihi.music.ui.components.bottomsheet.VolumeBottomSheet
+import ca.ilianokokoro.umihi.music.ui.components.bottomsheet.addtoplaylist.AddToPlaylistBottomSheet
+import ca.ilianokokoro.umihi.music.ui.components.song.ExplicitBadge
+import ca.ilianokokoro.umihi.music.ui.icons.favorite
+import ca.ilianokokoro.umihi.music.ui.icons.favorite_border
+import ca.ilianokokoro.umihi.music.ui.icons.playlist_add
+import ca.ilianokokoro.umihi.music.ui.icons.share
+import ca.ilianokokoro.umihi.music.ui.screens.player.components.PlayerActionButtons
+import ca.ilianokokoro.umihi.music.ui.screens.player.components.PlayerActionButtons
+import ca.ilianokokoro.umihi.music.ui.screens.player.components.PlayerActionButtons
+import ca.ilianokokoro.umihi.music.ui.components.dialog.ArtistChannelSheet
+import androidx.compose.foundation.clickable
+import ca.ilianokokoro.umihi.music.ui.screens.player.components.TopPlayer
+
+@Composable
+fun PlayerScreen(
+    modifier: Modifier = Modifier,
+    application: Application,
+    playerViewModel: PlayerViewModel = viewModel(
+        factory =
+            PlayerViewModel.Factory(application = application)
+    )
+) {
+    val uiState = playerViewModel.uiState.collectAsStateWithLifecycle().value
+    val context = LocalContext.current
+    val orientation = LocalConfiguration.current.orientation
+    val currentSong = uiState.queue.getOrNull(uiState.currentIndex)
+
+    val playbackProgress by playerViewModel.playbackProgress.collectAsState()
+    var addToPlaylistSong by remember { mutableStateOf<Song?>(null) }
+    var showArtistChannel by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    Scaffold(
+        modifier = Modifier
+            .padding(
+                start = 8.dp,
+                end = 8.dp,
+                bottom = 10.dp
+            ),
+        containerColor = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.primary,
+    ) { paddingValues ->
+        if (orientation == Configuration.ORIENTATION_PORTRAIT) {
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        TopPlayer(
+                            currentSong = currentSong,
+                            isLyricsShown = uiState.lyricsShown,
+                            lyricsState = uiState.lyrics,
+                            positionMs = { playbackProgress.position.toLong() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            SongInfo(
+                                song = currentSong,
+                                isLoggedIn = uiState.isLoggedIn,
+                                isLiked = uiState.isLiked,
+                                isLiking = uiState.isLiking,
+                                onToggleLike = playerViewModel::toggleLike,
+                                onShare = {
+                                    currentSong?.let {
+                                        playerViewModel.shareSong(context, it)
+                                    }
+                                },
+                                onAddToPlaylist = {
+                                    currentSong?.let { addToPlaylistSong = it }
+                                },
+                                onArtistClick = {
+                                    if (!currentSong?.artists.isNullOrBlank()) {
+                                        showArtistChannel = true
+                                    }
+                                }
+                            )
+
+                            PlayerControlsSection(
+                                uiState = uiState,
+                                playerViewModel = playerViewModel
+                            )
+                        }
+                    }
+                }
+
+                PlayerActionButtonsSection(
+                    uiState = uiState,
+                    playerViewModel = playerViewModel,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        } else if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            Row(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f)
+                ) {
+                    TopPlayer(
+                        currentSong = currentSong,
+                        isLyricsShown = uiState.lyricsShown,
+                        lyricsState = uiState.lyrics,
+                        positionMs = { playbackProgress.position.toLong() },
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .weight(1f)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f)
+                        .padding(horizontal = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        SongInfo(
+                            song = currentSong,
+                            isLoggedIn = uiState.isLoggedIn,
+                            isLiked = uiState.isLiked,
+                            isLiking = uiState.isLiking,
+
+                            onToggleLike = playerViewModel::toggleLike,
+                            onShare = {
+                                currentSong?.let {
+                                    playerViewModel.shareSong(
+                                        context,
+                                        it
+                                    )
+                                }
+                            },
+                            onAddToPlaylist = {
+                                currentSong?.let { addToPlaylistSong = it }
+                            },
+                            onArtistClick = {
+                                if (!currentSong?.artists.isNullOrBlank()) {
+                                    showArtistChannel = true
+                                }
+                            },
+                        )
+
+                        PlayerControlsSection(
+                            uiState = uiState,
+                            playerViewModel = playerViewModel,
+                        )
+
+                        PlayerActionButtonsSection(
+                            uiState = uiState,
+                            playerViewModel = playerViewModel,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+
+    if (uiState.isSpeedSelectorShown) {
+        SpeedSelectorBottomSheet(
+            changeVisibility = playerViewModel::setSpeedSelectorVisibility,
+            currentSpeed = uiState.playbackSpeed,
+            onSelectSpeed = playerViewModel::setPlaybackSpeed,
+        )
+    } else if (uiState.isQueueModalShown) {
+        QueueBottomSheet(
+            changeVisibility = playerViewModel::setQueueVisibility,
+            songs = uiState.queue,
+            currentIndex = uiState.currentIndex,
+            isMixActive = uiState.isMixActive,
+            isMixLoading = uiState.isMixLoading,
+            onToggleMix = playerViewModel::toggleMix,
+            onStartMix = { song -> PlayerManager.playMix(song) }
+        )
+    } else if (uiState.isSleepTimerModalShown) {
+        SleepTimerBottomSheet(
+            changeVisibility = playerViewModel::setSleepTimerSheetVisibility,
+            activeRemainingSeconds = uiState.sleepTimerRemainingSeconds,
+            onStartTimer = playerViewModel::startSleepTimer,
+            onStartEndOfSong = playerViewModel::startSleepTimerEndOfSong,
+            onCancelTimer = playerViewModel::cancelSleepTimer,
+        )
+    } else if (uiState.showVolumeDialog) {
+        VolumeBottomSheet(
+            changeVisibility = playerViewModel::updateShowVolumeDialog,
+            currentVolume = uiState.appVolume,
+            onVolumeChange = playerViewModel::setAppVolume
+        )
+    }
+
+    addToPlaylistSong?.let { song ->
+        AddToPlaylistBottomSheet(
+            song = song,
+            application = application,
+            onClose = { addToPlaylistSong = null },
+        )
+    }
+
+    if (showArtistChannel && !currentSong?.artists.isNullOrBlank()) {
+        ArtistChannelSheet(
+            artistName = currentSong!!.artists,
+            onDismiss = { showArtistChannel = false },
+            onPlayTrack = { query ->
+                showArtistChannel = false
+                coroutineScope.launch {
+                    SongRepository(application).search(query).collect { apiResult ->
+                        if (apiResult is ApiResult.Success) {
+                            apiResult.data.firstOrNull()?.let { PlayerManager.playSong(it) }
+                        }
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun Thumbnail(
+    href: String,
+    modifier: Modifier = Modifier
+) {
+    BoxWithConstraints(
+        modifier = modifier.padding(20.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        val size = minOf(maxWidth, maxHeight).coerceAtMost(300.dp)
+
+        AnimatedContent(
+            targetState = href,
+            transitionSpec = {
+                fadeIn(
+                    animationSpec = tween(Constants.Player.IMAGE_TRANSITION_DELAY)
+                ).togetherWith(
+                    fadeOut(
+                        animationSpec = tween(Constants.Player.IMAGE_TRANSITION_DELAY)
+                    )
+                )
+            }
+        ) { targetState ->
+            SquareImage(
+                uri = targetState,
+                modifier = Modifier.size(size)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerControlsSection(
+    uiState: PlayerState,
+    playerViewModel: PlayerViewModel,
+) {
+    PlayerControls(
+        isPlaying = uiState.isPlaying,
+        isLoading = uiState.isLoading,
+        progress = playerViewModel.playbackProgress,
+        onSeek = playerViewModel::seek,
+        onSeekPlayer = playerViewModel::seekPlayer,
+        onUpdateSeekBarHeldState = playerViewModel::updateSeekBarHeldState,
+    )
+}
+
+@Composable
+private fun PlayerActionButtonsSection(
+    uiState: PlayerState,
+    playerViewModel: PlayerViewModel,
+    modifier: Modifier = Modifier,
+) {
+    PlayerActionButtons(
+        isLyricsShown = uiState.lyricsShown,
+        isMixActive = uiState.isMixActive,
+        onToggleMix = playerViewModel::toggleMix,
+        onOpenQueue = { playerViewModel.setQueueVisibility(true) },
+        onOpenVolume = { playerViewModel.updateShowVolumeDialog(true) },
+        onOpenSleepTimer = { playerViewModel.setSleepTimerSheetVisibility(true) },
+        onToggleLyrics = playerViewModel::toggleLyrics,
+        onOpenSpeedSelector = { playerViewModel.setSpeedSelectorVisibility(true) },
+        playbackSpeed = uiState.playbackSpeed,
+        sleepTimerRemainingSeconds = uiState.sleepTimerRemainingSeconds,
+        modifier = modifier,
+    )
+}
+
+
+@Composable
+fun SongInfo(
+    song: Song?,
+    isLoggedIn: Boolean = false,
+    isLiked: Boolean = false,
+    isLiking: Boolean = false,
+    onToggleLike: () -> Unit = {},
+    onShare: () -> Unit = {},
+    onAddToPlaylist: () -> Unit = {},
+    onArtistClick: () -> Unit = {},
+) {
+    val haptic = LocalHapticFeedback.current
+    val actionButtonInteractionSources =
+        List(3) { ComposeHelper.rememberInteractionSource() }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                if (song?.isExplicit == true) {
+                    ExplicitBadge()
+                }
+                Text(
+                    text = song?.title ?: "",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.basicMarquee()
+                )
+            }
+            Text(
+                text = song?.artists ?: "",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                ),
+                modifier = Modifier
+                    .clickable { onArtistClick() }
+                    .basicMarquee()
+            )
+        }
+
+        Row(
+            modifier = Modifier.padding(start = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilledIconToggleButton(
+                checked = isLiked,
+                onCheckedChange = {
+                    if (!isLiking) {
+                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                        onToggleLike()
+                    }
+                },
+                colors = IconButtonDefaults.filledIconToggleButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    checkedContainerColor = MaterialTheme.colorScheme.primary,
+                    checkedContentColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Icon(
+                    imageVector = if (isLiked) favorite else favorite_border,
+                    contentDescription = stringResource(if (isLiked) R.string.unlike else R.string.like)
+                )
+            }
+            FilledIconButton(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                    onShare()
+                },
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(
+                    imageVector = share,
+                    contentDescription = stringResource(R.string.share)
+                )
+            }
+        }
+    }
+}
